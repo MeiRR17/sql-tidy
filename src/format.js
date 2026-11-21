@@ -34,10 +34,13 @@ export function tokenizeSql(source) {
   while (i < source.length) {
     const char = source[i], next = source[i + 1];
     if (/\s/.test(char)) { i++; continue; }
-    // PostgreSQL JSON extraction operators must not be mistaken for MySQL
-    // #-initiated comments. The standalone # ambiguity remains dialect-specific.
-    if (char === '#' && next === '>') {
-      emit('operator', source[i + 2] === '>' ? i + 3 : i + 2);
+    // Prefer known multi-character JSON / JSONPath operators before comment,
+    // placeholder and named-parameter lexing. Splitting e.g. @? into "@ ?"
+    // could change SQL semantics. Standalone # is still dialect ambiguous.
+    const jsonOperator = ['#>>', '->>', '#>', '#-', '->', '@?', '@@', '@>', '<@', '?|', '?&']
+      .find(operator => source.startsWith(operator, i));
+    if (jsonOperator) {
+      emit('operator', i + jsonOperator.length);
       continue;
     }
     if ((char === '-' && next === '-') || char === '#') {
