@@ -50,13 +50,13 @@ Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, *
 - SQL line comments, block comments and nested block-comment delimiters.
 - Scientific numeric literals such as `1e-3` and `2.5E+4`, leading-decimal values such as `.75`, and dialect-specific hexadecimal/binary integer literals are retained as single tokens rather than split around exponent signs.
 - Prefix-quoted literals such as PostgreSQL `E'escaped'`, national string literals `N'text'` and Unicode quoted identifiers `U&"name"` are kept contiguous without inserting a semantic-changing space.
-- PostgreSQL JSON operators `#>` and `#>>` are distinguished from MySQL-style `#` line comments.
+- Known PostgreSQL JSON/JSONPath operators `#>`, `#>>`, `#-`, `->`, `->>`, `@?`, `@@`, `@>`, `<@`, `?|` and `?&` are preserved as whole tokens rather than split into comments, positional parameters or multiple symbols.
 - Parenthesized subqueries, function calls, clause indentation and keyword case options.
 - Multiple SQL statements and semicolon-separated input.
 
 ## Limits
 
-This formatter is intentionally conservative but does **not** parse or validate SQL semantics. Dialects differ in quoting and operator rules; review formatted results before using them in production. Standalone `#` remains ambiguous between dialects (for example MySQL comments and PostgreSQL operators). This implementation only disambiguates `#>` and `#>>`; do not assume broad dialect coverage. SQL is never executed by the formatter. The formatter has not undergone the owner's separate centralized test cycle.
+This formatter is intentionally conservative but does **not** parse or validate SQL semantics. Dialects differ in quoting and operator rules; review formatted results before using them in production. Standalone `#` remains ambiguous between dialects (for example MySQL comments and PostgreSQL operators). A leading `#-` is treated as a PostgreSQL JSONB operator, although MySQL may interpret `#` as a comment marker; users should not assume full MySQL/PostgreSQL dialect auto-detection or semantic equivalence for ambiguous syntax. SQL is never executed by the formatter. The formatter has not undergone the owner's separate centralized test cycle.
 
 Source text is limited to 250,000 characters. Malformed unclosed quotes or comments produce errors rather than partially rewritten SQL. Do not run SQL without reviewing it.
 
