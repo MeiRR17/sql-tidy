@@ -1,2 +1,61 @@
-# sql-tidy
-A small, dependable SQL formatter with no dependencies
+# SQL Tidy
+
+A dependency-free SQL formatter for the browser, Node.js, and the command line. It adds readable whitespace and normalizes recognized keywords while preserving quoted strings, quoted identifiers, parameters, and SQL comments.
+
+## Browser
+
+Serve this repository as a static site. You can run a local server from the repository root:
+
+    python3 -m http.server 8000
+
+Open http://localhost:8000. Paste SQL, click **Format SQL** (or Ctrl / Cmd + Enter), select keyword casing and indentation, then copy or download the result. A sample query is included. SQL files up to 1 MB may be imported locally. The browser app makes no network requests with your SQL.
+
+## Node.js API
+
+Requires Node.js 22 or newer. No installation of external dependencies is required.
+
+    import { formatSql, tokenizeSql } from './src/format.js';
+    const formatted = formatSql('select id,name from users where active=true;', {
+      keywordCase: 'upper',
+      indent: 2,
+    });
+
+Keyword case may be upper (default), lower, or preserve. Indentation may be 2 (default) or 4 spaces.
+
+## CLI
+
+Invoke the CLI directly with Node.js:
+
+    node bin/sql-tidy.js --help
+    node bin/sql-tidy.js query.sql
+    node bin/sql-tidy.js --lower --indent=4 query.sql
+    node bin/sql-tidy.js query.sql -o formatted.sql
+    cat query.sql | node bin/sql-tidy.js --json
+
+Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, -o/--output, -h/--help. By default, results go to stdout; diagnostics go to stderr. The CLI refuses to overwrite its input file when the input and output path strings are identical.
+
+## Supported SQL forms
+
+- Queries with SELECT, FROM, WHERE, JOIN, GROUP BY, ORDER BY, HAVING, LIMIT, OFFSET, UNION, INSERT, UPDATE, DELETE, RETURNING and WITH clauses.
+- Common SQL quoted strings and identifiers (single/double quotes, bracket identifiers, backticks), PostgreSQL dollar-quoted strings and positional parameters, and named parameters.
+- SQL line comments, block comments and nested block-comment delimiters.
+- Parenthesized subqueries, function calls, clause indentation and keyword case options.
+- Multiple SQL statements and semicolon-separated input.
+
+## Limits
+
+This formatter is intentionally conservative but does **not** parse or validate SQL semantics. Dialects differ in quoting and operator rules; review formatted results before using them in production. The formatter has not undergone the owner's separate centralized test cycle.
+
+Source text is limited to 250,000 characters. Malformed unclosed quotes or comments produce errors rather than partially rewritten SQL. Do not run SQL without reviewing it.
+
+## Project structure
+
+- index.html, styles.css, app.js — static browser interface
+- src/format.js — lexer, formatter, public JavaScript exports
+- bin/sql-tidy.js — Node.js CLI
+- package.json — ESM package metadata
+- LICENSE — MIT license
+
+## Author
+
+Built by Meir Dvir · https://github.com/MeiRR17
