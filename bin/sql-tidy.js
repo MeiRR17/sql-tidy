@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile, writeFile, realpath } from 'node:fs/promises';
+import { readFile, writeFile, realpath, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { formatSql } from '../src/format.js';
 import { checkSql } from '../src/check.js';
@@ -59,8 +59,11 @@ async function main(argv) {
     // Also refuse aliases, relative paths and symlinks that target the input.
     // An absent output is safe by default because we create it exclusively.
     try {
-      if (await realpath(output) === await realpath(input)) {
-        throw new Error('Refusing to overwrite the input file via a path alias.');
+      const [outPath, inPath, outStat, inStat] = await Promise.all([
+        realpath(output), realpath(input), stat(output), stat(input),
+      ]);
+      if (outPath === inPath || (outStat.dev === inStat.dev && outStat.ino === inStat.ino)) {
+        throw new Error('Refusing to overwrite the input file via an alias or hard link.');
       }
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
