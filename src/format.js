@@ -14,6 +14,11 @@ const KEYWORDS = new Set(('SELECT DISTINCT ALL AS FROM WHERE GROUP BY ORDER HAVI
   'ELSE END ASC DESC NULLS LAST TRUE FALSE COUNT SUM AVG MIN MAX COALESCE CAST OVER PARTITION ' +
   'CREATE TABLE VIEW DROP ALTER ADD PRIMARY KEY REFERENCES DEFAULT IF TOP FOR').split(' '));
 
+// Longest-first matching of dialect-specific multi-character operators.
+const JSON_OPERATORS = Object.freeze([
+  '#>>', '->>', '#>', '#-', '->', '@?', '@@', '@>', '<@', '?|', '?&',
+]);
+
 const CLAUSES = [
   ['LEFT', 'OUTER', 'JOIN'], ['RIGHT', 'OUTER', 'JOIN'], ['FULL', 'OUTER', 'JOIN'],
   ['LEFT', 'JOIN'], ['RIGHT', 'JOIN'], ['FULL', 'JOIN'], ['INNER', 'JOIN'],
@@ -37,8 +42,7 @@ export function tokenizeSql(source) {
     // Prefer known multi-character JSON / JSONPath operators before comment,
     // placeholder and named-parameter lexing. Splitting e.g. @? into "@ ?"
     // could change SQL semantics. Standalone # is still dialect ambiguous.
-    const jsonOperator = ['#>>', '->>', '#>', '#-', '->', '@?', '@@', '@>', '<@', '?|', '?&']
-      .find(operator => source.startsWith(operator, i));
+    const jsonOperator = JSON_OPERATORS.find(operator => source.startsWith(operator, i));
     if (jsonOperator) {
       emit('operator', i + jsonOperator.length);
       continue;
