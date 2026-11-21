@@ -41,7 +41,7 @@ Invoke the CLI directly with Node.js:
     cat query.sql | node bin/sql-tidy.js --json
     node bin/sql-tidy.js --check query.sql
 
-Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, **--check**, -o/--output, -h/--help. By default, formatted SQL goes to stdout; diagnostics go to stderr. `--check` compares the original SQL to SQL Tidy's canonical formatting **without writing a file or printing SQL contents**. It reports the first mismatching line/column. Exit codes in check mode: **0** already formatted, **1** differs, **2** invalid input or runtime error. `--check` cannot be combined with `--json` or `--output`. The CLI refuses to overwrite its input file when the input and output path strings are identical.
+Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, **--check**, -o/--output, **--force**, -h/--help. By default, formatted SQL goes to stdout; diagnostics go to stderr. `--check` compares the original SQL to SQL Tidy's canonical formatting **without writing a file or printing SQL contents**. It reports the first mismatching line/column. Exit codes in check mode: **0** already formatted, **1** differs, **2** invalid input or runtime error. `--check` cannot be combined with `--json` or `--output`. Output files are created exclusively (`wx`), so existing files are **never overwritten by default**. To replace an unrelated output file explicitly, use `--force --output path.sql`; `--force` without `--output` is an error. Even with force, the CLI refuses output paths that resolve to the input through a relative path, symbolic link or hard link. `--check` cannot be combined with `--force`.
 
 ## Supported SQL forms
 
