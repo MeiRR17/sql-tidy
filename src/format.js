@@ -5,6 +5,9 @@
 const MAX_LENGTH = 250_000;
 const WORD_START = /[A-Za-z_\u0080-\uffff]/;
 const WORD_BODY = /[A-Za-z0-9_$\u0080-\uffff]/;
+// Sticky matching avoids copying the remainder of the SQL for each numeric
+// token; signs in exponents are part of the literal, not binary operators.
+const NUMERIC_LITERAL = /(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|(?:\d+(?:\.(?!\.)\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/y;
 const KEYWORDS = new Set(('SELECT DISTINCT ALL AS FROM WHERE GROUP BY ORDER HAVING LIMIT OFFSET FETCH FIRST NEXT ROWS ONLY ' +
   'JOIN INNER LEFT RIGHT FULL OUTER CROSS NATURAL ON USING AND OR NOT NULL IS IN EXISTS BETWEEN LIKE ILIKE ' +
   'INSERT INTO VALUES UPDATE SET DELETE RETURNING WITH RECURSIVE UNION INTERSECT EXCEPT CASE WHEN THEN ' +
@@ -31,6 +34,12 @@ export function tokenizeSql(source) {
   while (i < source.length) {
     const char = source[i], next = source[i + 1];
     if (/\s/.test(char)) { i++; continue; }
+    // PostgreSQL JSON extraction operators must not be mistaken for MySQL
+    // #-initiated comments. The standalone # ambiguity remains dialect-specific.
+    if (char === '#' && next === '>') {
+      emit('operator', source[i + 2] === '>' ? i + 3 : i + 2);
+      continue;
+    }
     if ((char === '-' && next === '-') || char === '#') {
       let j = i + (char === '#' ? 1 : 2);
       while (j < source.length && !/[\r\n]/.test(source[j])) j++;
@@ -58,6 +67,28 @@ export function tokenizeSql(source) {
         emit('parameter', j); continue;
       }
     }
+    // Keep dialect-prefixed quoted literals attached: E'...', N'...',
+    // X'...', B'...', U&'...' and U&"identifier". A space inserted
+    // after a prefix could change SQL semantics.
+    if (/[eEnNxXbBuU]/.test(char)) {
+      const prefix = /^(?:[eEnNxXbB](?=')|[uU]&(?=['"]))/u.exec(source.slice(i, i + 3));
+      if (prefix) {
+        const quoteStart = i + prefix[0].length;
+        const closing = source[quoteStart];
+        let j = quoteStart + 1, ended = false;
+        while (j < source.length) {
+          if (source[j] === closing) {
+            if (source[j + 1] === closing) { j += 2; continue; }
+            j++; ended = true; break;
+          }
+          if (source[j] === '\\' && j + 1 < source.length) { j += 2; continue; }
+          j++;
+        }
+        if (!ended) throw new SyntaxError('Unterminated prefixed SQL literal.');
+        emit('quoted', j);
+        continue;
+      }
+    }
     if (char === "'" || char === '"' || char.charCodeAt(0) === 96 || char === '[') {
       const close = char === '[' ? ']' : char;
       let j = i + 1, ended = false;
@@ -76,9 +107,13 @@ export function tokenizeSql(source) {
       let j = i + 1; while (j < source.length && WORD_BODY.test(source[j])) j++;
       emit('word', j); continue;
     }
-    if (/\d/.test(char)) {
-      let j = i + 1; while (j < source.length && /[\d.eE]/.test(source[j])) j++;
-      emit('number', j); continue;
+    if (/\d/.test(char) || (char === '.' && /\d/.test(next || ''))) {
+      NUMERIC_LITERAL.lastIndex = i;
+      const number = NUMERIC_LITERAL.exec(source);
+      if (number) {
+        emit('number', NUMERIC_LITERAL.lastIndex);
+        continue;
+      }
     }
     if (char === '?' || ((char === ':' || char === '@') && WORD_START.test(next || ''))) {
       let j = i + 1; while (j < source.length && WORD_BODY.test(source[j])) j++;
