@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, realpath } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { formatSql } from '../src/format.js';
 import { checkSql } from '../src/check.js';
 
@@ -17,7 +18,8 @@ const HELP = [
   '  --indent=4    Indent with 4 spaces',
   '  --json        Print {"formatted":"..."}',
   '  --check       Exit 1 if formatting differs, 0 if already formatted',
-  '  -o, --output  Write to a file instead of stdout',
+  '  -o, --output  Write to a new file instead of stdout',
+  '  --force       Allow overwriting an existing output (never the input)',
   '  -h, --help    Print usage information',
   '',
   'Check mode prints no SQL values. Exit codes: 0 pass, 1 differs, 2 error.',
@@ -30,7 +32,7 @@ async function stdinText() {
 }
 async function main(argv) {
   const options = { keywordCase: 'upper', indent: 2 };
-  let input = '', output = '', json = false, help = false, check = false;
+  let input = '', output = '', json = false, help = false, check = false, force = false;
   for (let i = 0; i < argv.length; i++) {
     const value = argv[i];
     if (value === '--help' || value === '-h') help = true;
@@ -41,6 +43,7 @@ async function main(argv) {
     else if (value === '--indent=4') options.indent = 4;
     else if (value === '--json') json = true;
     else if (value === '--check') check = true;
+    else if (value === '--force') force = true;
     else if (value === '-o' || value === '--output') {
       output = argv[++i];
       if (!output) throw new Error('Missing output filename.');
@@ -49,8 +52,20 @@ async function main(argv) {
     else throw new Error('Only one input filename is supported.');
   }
   if (help) { process.stdout.write(HELP + '\n'); return; }
-  if (check && (json || output)) throw new Error('--check cannot be combined with --json or --output.');
-  if (output && input && output === input) throw new Error('Refusing to overwrite the input file.');
+  if (check && (json || output || force)) throw new Error('--check cannot be combined with --json, --output or --force.');
+  if (force && !output) throw new Error('--force requires --output.');
+  if (output && input) {
+    if (resolve(output) === resolve(input)) throw new Error('Refusing to overwrite the input file.');
+    // Also refuse aliases, relative paths and symlinks that target the input.
+    // An absent output is safe by default because we create it exclusively.
+    try {
+      if (await realpath(output) === await realpath(input)) {
+        throw new Error('Refusing to overwrite the input file via a path alias.');
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
   if (!input && process.stdin.isTTY) throw new Error('Provide a file or pipe SQL through stdin.');
   const sql = input ? await readFile(input, 'utf8') : await stdinText();
   if (!sql.trim()) throw new Error('No SQL to format.');
@@ -67,7 +82,7 @@ async function main(argv) {
   }
   const formatted = formatSql(sql, options);
   const result = json ? JSON.stringify({ formatted }) + '\n' : formatted;
-  if (output) await writeFile(output, result, 'utf8');
+  if (output) await writeFile(output, result, { encoding: 'utf8', flag: force ? 'w' : 'wx' });
   else process.stdout.write(result);
 }
 
