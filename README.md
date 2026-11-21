@@ -22,6 +22,14 @@ Requires Node.js 22 or newer. No installation of external dependencies is requir
 
 Keyword case may be upper (default), lower, or preserve. Indentation may be 2 (default) or 4 spaces.
 
+Read-only formatting checks are also available:
+
+    import { checkSql } from './src/check.js';
+    const result = checkSql('select * from users;', { keywordCase: 'upper', indent: 2 });
+    if (!result.unchanged) console.error(result.firstDifference);
+
+The package exposes this API as the `sql-tidy/check` export subpath. `firstDifference` reports an index, line and column, not SQL contents.
+
 ## CLI
 
 Invoke the CLI directly with Node.js:
@@ -31,8 +39,9 @@ Invoke the CLI directly with Node.js:
     node bin/sql-tidy.js --lower --indent=4 query.sql
     node bin/sql-tidy.js query.sql -o formatted.sql
     cat query.sql | node bin/sql-tidy.js --json
+    node bin/sql-tidy.js --check query.sql
 
-Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, -o/--output, -h/--help. By default, results go to stdout; diagnostics go to stderr. The CLI refuses to overwrite its input file when the input and output path strings are identical.
+Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, **--check**, -o/--output, -h/--help. By default, formatted SQL goes to stdout; diagnostics go to stderr. `--check` compares the original SQL to SQL Tidy's canonical formatting **without writing a file or printing SQL contents**. It reports the first mismatching line/column. Exit codes in check mode: **0** already formatted, **1** differs, **2** invalid input or runtime error. `--check` cannot be combined with `--json` or `--output`. The CLI refuses to overwrite its input file when the input and output path strings are identical.
 
 ## Supported SQL forms
 
@@ -52,6 +61,7 @@ Source text is limited to 250,000 characters. Malformed unclosed quotes or comme
 
 - index.html, styles.css, app.js — static browser interface
 - src/format.js — lexer, formatter, public JavaScript exports
+- src/check.js — read-only formatting compliance API for CI
 - bin/sql-tidy.js — Node.js CLI
 - package.json — ESM package metadata
 - LICENSE — MIT license
