@@ -8,7 +8,7 @@ Serve this repository as a static site. You can run a local server from the repo
 
     python3 -m http.server 8000
 
-Open http://localhost:8000. Paste SQL, click **Format SQL** (or Ctrl / Cmd + Enter), select keyword casing and indentation, then copy or download the result. Use **Check formatting** for a separate read-only comparison against the selected style; it reports pass/fail and first differing line/column plus text lengths **without changing either editor or echoing SQL values**. The check runs locally, and its status is replaced when you edit or format again. A sample query is included. SQL files up to 1 MB may be imported locally. Browser import uses strict UTF-8 decoding and rejects malformed bytes instead of silently replacing SQL characters. If the SQL editor is modified or another file is selected while a file is being read, the earlier import is cancelled rather than overwriting newer edits. The browser app makes no network requests with your SQL. A pending asynchronous clipboard copy retains its original output snapshot and revision: if the SQL is edited, cleared, or reformatted before the browser completes the copy, the UI warns that the clipboard may contain the earlier version rather than claiming the current output was copied. This cannot revoke a clipboard write that already happened.
+Open http://localhost:8000. Paste SQL, click **Format SQL** (or Ctrl / Cmd + Enter), select keyword casing and indentation, then copy or download the result. Use **Check formatting** for a separate read-only comparison against the selected style; it reports pass/fail and first differing line/column plus text lengths **without changing either editor or echoing SQL values**. Afterwards the **Check JSON** button downloads an explicit content-free format report locally, without SQL source or formatted query. Editor edits or style setting changes disable the report until checked again. Coordinates and lengths can still reveal document structure. The check runs locally, and its status is replaced when you edit or format again. A sample query is included. SQL files up to 1 MB may be imported locally. Browser import uses strict UTF-8 decoding and rejects malformed bytes instead of silently replacing SQL characters. If the SQL editor is modified or another file is selected while a file is being read, the earlier import is cancelled rather than overwriting newer edits. The browser app makes no network requests with your SQL. A pending asynchronous clipboard copy retains its original output snapshot and revision: if the SQL is edited, cleared, or reformatted before the browser completes the copy, the UI warns that the clipboard may contain the earlier version rather than claiming the current output was copied. This cannot revoke a clipboard write that already happened.
 
 ## Node.js API
 
@@ -24,11 +24,13 @@ Keyword case may be upper (default), lower, or preserve. Indentation may be 2 (d
 
 Read-only formatting checks are also available:
 
-    import { checkSql } from './src/check.js';
+    import { checkSql, checkSqlReport } from './src/check.js';
     const result = checkSql('select * from users;', { keywordCase: 'upper', indent: 2 });
     if (!result.unchanged) console.error(result.firstDifference);
+    const redacted = checkSqlReport('select * from users;', { keywordCase: 'upper', indent: 2 });
+    // Metadata only; no source or formatted SQL text.
 
-The package exposes this API as the `sql-tidy/check` export subpath. `firstDifference` reports an index, line and column, not SQL contents.
+The package exposes these APIs as the `sql-tidy/check` export subpath. `checkSqlReport()` creates the same redacted JSON object used by the CLI and the browser's explicit Check JSON export. `firstDifference` reports an index, line and column, not SQL contents.
 
 ## CLI
 
@@ -65,7 +67,7 @@ CLI input is bounded to **1 MB of UTF-8 bytes** while being read (including pipe
 
 - index.html, styles.css, app.js — static browser interface
 - src/format.js — lexer, formatter, public JavaScript exports
-- src/check.js — read-only formatting compliance API for CI
+- src/check.js — read-only formatting check and content-free report shared by browser and CLI
 - src/input.js — bounded, strict UTF-8 CLI input reader
 - bin/sql-tidy.js — Node.js CLI
 - package.json — ESM package metadata

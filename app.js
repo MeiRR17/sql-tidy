@@ -1,5 +1,5 @@
 import { formatSql, tokenizeSql } from './src/format.js';
-import { checkSql } from './src/check.js';
+import { checkSqlReport } from './src/check.js';
 
 const get = id => document.getElementById(id);
 const input = get('input');
@@ -7,6 +7,8 @@ const output = get('output');
 const message = get('message');
 const copy = get('copy');
 const download = get('download');
+const checkDownload = get('check-report-download');
+let lastCheckReport = null;
 let editRevision = 0;
 let fileRequest = 0;
 let outputRevision = 0; // Avoid claiming that a stale async clipboard write copied the current SQL.
@@ -37,7 +39,12 @@ function updateStats() {
   get('output-stats').textContent = output.value.trim()
     ? output.value.trimEnd().split(/\r\n?|\n/).length.toLocaleString() + ' lines' : '0 lines';
 }
+function invalidateCheck() {
+  lastCheckReport = null;
+  checkDownload.disabled = true;
+}
 function invalidate() {
+  invalidateCheck();
   outputRevision++;
   output.value = '';
   copy.disabled = download.disabled = true;
@@ -45,6 +52,7 @@ function invalidate() {
   updateStats();
 }
 function format() {
+  invalidateCheck();
   if (!input.value.trim()) {
     invalidate();
     setMessage('Paste SQL or open a local file to begin.', 'error');
@@ -72,7 +80,9 @@ get('check-format').addEventListener('click', () => {
     return;
   }
   try {
-    const result = checkSql(input.value, getOptions());
+    const result = checkSqlReport(input.value, getOptions());
+    lastCheckReport = result;
+    checkDownload.disabled = false;
     if (result.unchanged) {
       setMessage('Formatting check passed. The input already matches the selected style.', 'success');
     } else {
@@ -82,6 +92,7 @@ get('check-format').addEventListener('click', () => {
         result.formattedLength + '). The input was not changed.', 'error');
     }
   } catch (error) {
+    invalidateCheck();
     setMessage('Formatting check failed: ' +
       (error instanceof Error ? error.message : 'Invalid SQL input.'), 'error');
   }
@@ -103,6 +114,7 @@ input.addEventListener('input', () => {
 });
 for (const id of ['keyword-case', 'indent']) {
   get(id).addEventListener('change', () => {
+    invalidateCheck();
     if (input.value.trim()) format();
   });
 }
@@ -164,16 +176,29 @@ copy.addEventListener('click', async () => {
     setMessage('Clipboard access was blocked. The output is selected for manual copying.', 'error');
   }
 });
-download.addEventListener('click', () => {
-  if (!output.value) return;
-  const blob = new Blob([output.value], { type: 'text/plain;charset=utf-8' });
+function downloadFile(content, name, type) {
+  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'formatted.sql';
+  link.download = name;
   document.body.append(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+checkDownload.addEventListener('click', () => {
+  if (!lastCheckReport || checkDownload.disabled) return;
+  try {
+    downloadFile(JSON.stringify(lastCheckReport, null, 2) + '\n',
+      'sql-tidy-format-check.json', 'application/json;charset=utf-8');
+    setMessage('Format check JSON downloaded without SQL text. Positions and lengths may still be sensitive.', 'success');
+  } catch {
+    setMessage('Could not download the format-check report.', 'error');
+  }
+});
+download.addEventListener('click', () => {
+  if (!output.value || download.disabled) return;
+  downloadFile(output.value, 'formatted.sql', 'text/plain;charset=utf-8');
 });
 updateStats();

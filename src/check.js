@@ -26,3 +26,27 @@ export function checkSql(sql, options = {}) {
     formattedLength: formatted.length,
   };
 }
+
+
+/**
+ * A deliberately content-free report suitable for local browser downloads
+ * and CI artifacts. Never includes SQL source, tokens, values or comments.
+ * First-difference coordinates and lengths can still reveal structure.
+ */
+export function checkSqlReport(sql, options = {}) {
+  const result = checkSql(sql, options);
+  return {
+    format: 'sql-tidy-check-v1',
+    unchanged: result.unchanged,
+    firstDifference: result.firstDifference,
+    ...(result.unchanged ? {} : {
+      originalLength: result.originalLength,
+      formattedLength: result.formattedLength,
+    }),
+    options: {
+      keywordCase: options.keywordCase ?? 'upper',
+      indent: options.indent ?? 2,
+    },
+    advisory: 'Format-only metadata. No SQL content; positions and lengths may be sensitive. This is not SQL validation.',
+  };
+}

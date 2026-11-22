@@ -3,7 +3,7 @@ import { writeFile, realpath, stat } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { formatSql } from '../src/format.js';
-import { checkSql } from '../src/check.js';
+import { checkSqlReport } from '../src/check.js';
 import { readSqlStream } from '../src/input.js';
 
 const HELP = [
@@ -70,19 +70,10 @@ async function main(argv) {
   const sql = await readSqlStream(input ? createReadStream(input) : process.stdin);
   if (!sql.trim()) throw new Error('No SQL to format.');
   if (check) {
-    const result = checkSql(sql, options);
+    const result = checkSqlReport(sql, options);
     if (json) {
       // Project only check metadata. Never emit formatted or source SQL.
-      process.stdout.write(JSON.stringify({
-        format: 'sql-tidy-check-v1',
-        unchanged: result.unchanged,
-        firstDifference: result.firstDifference,
-        ...(result.unchanged ? {} : {
-          originalLength: result.originalLength,
-          formattedLength: result.formattedLength,
-        }),
-        options: { keywordCase: options.keywordCase, indent: options.indent },
-      }, null, 2) + '\n');
+      process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     } else if (result.unchanged) {
       process.stdout.write('SQL Tidy: already formatted.\n');
     } else {
