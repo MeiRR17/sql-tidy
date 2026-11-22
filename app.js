@@ -6,6 +6,12 @@ const output = get('output');
 const message = get('message');
 const copy = get('copy');
 const download = get('download');
+let editRevision = 0;
+let fileRequest = 0;
+function changedSource() {
+  editRevision++;
+  invalidate();
+}
 const example = [
   "select u.id,u.name,u.email, count(o.id) as orders,sum(o.total) as revenue",
   "from users u left join orders o on u.id=o.user_id and o.status='paid'",
@@ -55,17 +61,17 @@ function format() {
 get('format').addEventListener('click', format);
 get('sample').addEventListener('click', () => {
   input.value = example;
-  updateStats();
+  changedSource();
   format();
 });
 get('clear').addEventListener('click', () => {
   input.value = '';
-  invalidate();
+  changedSource();
   setMessage('Editor cleared. Paste a new SQL query.');
   input.focus();
 });
 input.addEventListener('input', () => {
-  invalidate();
+  changedSource();
   setMessage('Press Format SQL or Ctrl / ⌘ + Enter when ready.');
 });
 for (const id of ['keyword-case', 'indent']) {
@@ -81,17 +87,36 @@ document.addEventListener('keydown', event => {
 });
 get('file').addEventListener('change', async event => {
   const selected = event.target.files?.[0];
+  // Allow choosing the same file again after editing or a failed import.
+  event.target.value = '';
   if (!selected) return;
+  const request = ++fileRequest;
+  const revision = editRevision;
   if (selected.size > 1_000_000) {
     setMessage('Please choose a SQL file smaller than 1 MB.', 'error');
     return;
   }
   try {
-    input.value = await selected.text();
-    updateStats();
+    const bytes = await selected.arrayBuffer();
+    // The user can change the SQL, clear it, or select a newer file while
+    // File.arrayBuffer() is pending. Never overwrite newer editor content.
+    if (request !== fileRequest) return;
+    if (revision !== editRevision) {
+      setMessage('The editor changed while the file was being read. Import cancelled to preserve your edits.', 'error');
+      return;
+    }
+    if (bytes.byteLength > 1_000_000) {
+      throw new RangeError('SQL file exceeds the 1 MB input limit.');
+    }
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    input.value = decoded;
+    changedSource();
     format();
-  } catch {
-    setMessage('The selected file could not be read.', 'error');
+  } catch (error) {
+    if (request === fileRequest && revision === editRevision) {
+      setMessage(error instanceof RangeError ? error.message :
+        'Could not read the file as valid UTF-8 SQL.', 'error');
+    }
   }
 });
 copy.addEventListener('click', async () => {

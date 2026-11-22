@@ -8,7 +8,7 @@ Serve this repository as a static site. You can run a local server from the repo
 
     python3 -m http.server 8000
 
-Open http://localhost:8000. Paste SQL, click **Format SQL** (or Ctrl / Cmd + Enter), select keyword casing and indentation, then copy or download the result. A sample query is included. SQL files up to 1 MB may be imported locally. The browser app makes no network requests with your SQL.
+Open http://localhost:8000. Paste SQL, click **Format SQL** (or Ctrl / Cmd + Enter), select keyword casing and indentation, then copy or download the result. A sample query is included. SQL files up to 1 MB may be imported locally. Browser import uses strict UTF-8 decoding and rejects malformed bytes instead of silently replacing SQL characters. If the SQL editor is modified or another file is selected while a file is being read, the earlier import is cancelled rather than overwriting newer edits. The browser app makes no network requests with your SQL.
 
 ## Node.js API
 
