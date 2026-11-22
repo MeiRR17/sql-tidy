@@ -13,8 +13,13 @@ export function checkSql(sql, options = {}) {
   const n = Math.min(sql.length, formatted.length);
   let index = 0, line = 1, column = 1;
   while (index < n && sql[index] === formatted[index]) {
-    if (sql[index] === '\n') {
+    if (sql[index] === '\r') {
       line++;
+      column = 1;
+    } else if (sql[index] === '\n') {
+      // CRLF is a single newline. Standalone CR and LF are also supported,
+      // including inside quoted SQL that the formatter leaves verbatim.
+      if (index === 0 || sql[index - 1] !== '\r') line++;
       column = 1;
     } else column++;
     index++;

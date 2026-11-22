@@ -8,6 +8,10 @@ const WORD_BODY = /[A-Za-z0-9_$\u0080-\uffff]/;
 // Sticky matching avoids copying the remainder of the SQL for each numeric
 // token; signs in exponents are part of the literal, not binary operators.
 const NUMERIC_LITERAL = /(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|(?:\d+(?:\.(?!\.)\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/y;
+// Sticky tags inspect the current source position without slicing/copying
+// the full remaining SQL. This matters for large parameterized statements
+// with thousands of $1, $2, ... placeholders.
+const DOLLAR_QUOTE_OPENER = /\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/y;
 const KEYWORDS = new Set(('SELECT DISTINCT ALL AS FROM WHERE GROUP BY ORDER HAVING LIMIT OFFSET FETCH FIRST NEXT ROWS ONLY ' +
   'JOIN INNER LEFT RIGHT FULL OUTER CROSS NATURAL ON USING AND OR NOT NULL IS IN EXISTS BETWEEN LIKE ILIKE ' +
   'INSERT INTO VALUES UPDATE SET DELETE RETURNING WITH RECURSIVE UNION INTERSECT EXCEPT CASE WHEN THEN ' +
@@ -63,7 +67,8 @@ export function tokenizeSql(source) {
       emit('block-comment', j); continue;
     }
     if (char === '$') {
-      const marker = /^(?:\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$)/.exec(source.slice(i));
+      DOLLAR_QUOTE_OPENER.lastIndex = i;
+      const marker = DOLLAR_QUOTE_OPENER.exec(source);
       if (marker) {
         const end = source.indexOf(marker[0], i + marker[0].length);
         if (end < 0) throw new SyntaxError('Unterminated dollar-quoted string.');

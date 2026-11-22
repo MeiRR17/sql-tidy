@@ -30,7 +30,7 @@ Read-only formatting checks are also available:
     const redacted = checkSqlReport('select * from users;', { keywordCase: 'upper', indent: 2 });
     // Metadata only; no source or formatted SQL text.
 
-The package exposes these APIs as the `sql-tidy/check` export subpath. `checkSqlReport()` creates the same redacted JSON object used by the CLI and the browser's explicit Check JSON export. `firstDifference` reports an index, line and column, not SQL contents.
+The package exposes these APIs as the `sql-tidy/check` export subpath. `checkSqlReport()` creates the same redacted JSON object used by the CLI and the browser's explicit Check JSON export. `firstDifference` reports an index, line and column, not SQL contents. Line/column mapping recognizes LF, CRLF as one line break, and bare CR, including preserved newlines within quoted strings; the index remains a UTF-16 source offset.
 
 ## CLI
 
@@ -49,7 +49,7 @@ Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, *
 ## Supported SQL forms
 
 - Queries with SELECT, FROM, WHERE, JOIN, GROUP BY, ORDER BY, HAVING, LIMIT, OFFSET, UNION, INSERT, UPDATE, DELETE, RETURNING and WITH clauses.
-- Common SQL quoted strings and identifiers (single/double quotes, bracket identifiers, backticks), PostgreSQL dollar-quoted strings and positional parameters, and named parameters.
+- Common SQL quoted strings and identifiers (single/double quotes, bracket identifiers, backticks), PostgreSQL dollar-quoted strings and positional parameters, and named parameters. Dollar-quote openers are now read with a sticky source-offset matcher instead of repeatedly copying the remainder of the document for each `$n` placeholder. This avoids quadratic temporary string allocation on large SQL statements with many positional parameters; existing tag and literal preservation behavior is unchanged.
 - SQL line comments, block comments and nested block-comment delimiters.
 - Scientific numeric literals such as `1e-3` and `2.5E+4`, leading-decimal values such as `.75`, and dialect-specific hexadecimal/binary integer literals are retained as single tokens rather than split around exponent signs.
 - Prefix-quoted literals such as PostgreSQL `E'escaped'`, national string literals `N'text'` and Unicode quoted identifiers `U&"name"` are kept contiguous without inserting a semantic-changing space.
