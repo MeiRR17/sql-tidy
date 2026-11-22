@@ -1,4 +1,5 @@
 import { formatSql, tokenizeSql } from './src/format.js';
+import { checkSql } from './src/check.js';
 
 const get = id => document.getElementById(id);
 const input = get('input');
@@ -8,6 +9,7 @@ const copy = get('copy');
 const download = get('download');
 let editRevision = 0;
 let fileRequest = 0;
+let outputRevision = 0; // Avoid claiming that a stale async clipboard write copied the current SQL.
 function changedSource() {
   editRevision++;
   invalidate();
@@ -36,6 +38,7 @@ function updateStats() {
     ? output.value.trimEnd().split(/\r\n?|\n/).length.toLocaleString() + ' lines' : '0 lines';
 }
 function invalidate() {
+  outputRevision++;
   output.value = '';
   copy.disabled = download.disabled = true;
   get('output-hint').textContent = 'Ready to format';
@@ -48,7 +51,9 @@ function format() {
     return;
   }
   try {
-    output.value = formatSql(input.value, getOptions());
+    const formatted = formatSql(input.value, getOptions());
+    outputRevision++;
+    output.value = formatted;
     get('output-hint').textContent = 'Formatted without changing quoted text';
     copy.disabled = download.disabled = !output.value;
     setMessage('Formatted ' + tokenizeSql(input.value).length.toLocaleString() + ' SQL tokens locally.', 'success');
@@ -59,6 +64,28 @@ function format() {
   }
 }
 get('format').addEventListener('click', format);
+get('check-format').addEventListener('click', () => {
+  // Read-only check: neither SQL editor nor formatted-output preview changes.
+  // Report coordinates and lengths only; do not echo confidential SQL text.
+  if (!input.value.trim()) {
+    setMessage('Paste SQL or open a local file before checking formatting.', 'error');
+    return;
+  }
+  try {
+    const result = checkSql(input.value, getOptions());
+    if (result.unchanged) {
+      setMessage('Formatting check passed. The input already matches the selected style.', 'success');
+    } else {
+      const { line, column } = result.firstDifference;
+      setMessage('Formatting differs at line ' + line + ', column ' + column +
+        ' (original: ' + result.originalLength + ' characters; canonical: ' +
+        result.formattedLength + '). The input was not changed.', 'error');
+    }
+  } catch (error) {
+    setMessage('Formatting check failed: ' +
+      (error instanceof Error ? error.message : 'Invalid SQL input.'), 'error');
+  }
+});
 get('sample').addEventListener('click', () => {
   input.value = example;
   changedSource();
@@ -121,10 +148,17 @@ get('file').addEventListener('change', async event => {
 });
 copy.addEventListener('click', async () => {
   if (!output.value) return;
+  const revision = outputRevision;
+  const snapshot = output.value;
   try {
-    await navigator.clipboard.writeText(output.value);
+    await navigator.clipboard.writeText(snapshot);
+    if (revision !== outputRevision) {
+      setMessage('Copy finished for a previous formatted result. The clipboard may still contain outdated SQL.', 'error');
+      return;
+    }
     setMessage('Formatted SQL copied to the clipboard.', 'success');
   } catch {
+    if (revision !== outputRevision) return;
     output.focus();
     output.select();
     setMessage('Clipboard access was blocked. The output is selected for manual copying.', 'error');
