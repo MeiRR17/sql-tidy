@@ -58,13 +58,14 @@ Available flags: --upper, --lower, --preserve, --indent=2, --indent=4, --json, *
 
 This formatter is intentionally conservative but does **not** parse or validate SQL semantics. Dialects differ in quoting and operator rules; review formatted results before using them in production. Standalone `#` remains ambiguous between dialects (for example MySQL comments and PostgreSQL operators). A leading `#-` is treated as a PostgreSQL JSONB operator, although MySQL may interpret `#` as a comment marker; users should not assume full MySQL/PostgreSQL dialect auto-detection or semantic equivalence for ambiguous syntax. SQL is never executed by the formatter. The formatter has not undergone the owner's separate centralized test cycle.
 
-Source text is limited to 250,000 characters. Malformed unclosed quotes or comments produce errors rather than partially rewritten SQL. Do not run SQL without reviewing it.
+CLI input is bounded to **1 MB of UTF-8 bytes** while being read (including piped stdin) and rejects malformed UTF-8 instead of silently replacing bytes. A leading UTF-8 BOM is accepted. The formatter still limits decoded SQL to 250,000 characters. Malformed unclosed quotes or comments produce errors rather than partially rewritten SQL. Do not run SQL without reviewing it.
 
 ## Project structure
 
 - index.html, styles.css, app.js — static browser interface
 - src/format.js — lexer, formatter, public JavaScript exports
 - src/check.js — read-only formatting compliance API for CI
+- src/input.js — bounded, strict UTF-8 CLI input reader
 - bin/sql-tidy.js — Node.js CLI
 - package.json — ESM package metadata
 - LICENSE — MIT license

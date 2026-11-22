@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-import { readFile, writeFile, realpath, stat } from 'node:fs/promises';
+import { writeFile, realpath, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { formatSql } from '../src/format.js';
 import { checkSql } from '../src/check.js';
+import { readSqlStream } from '../src/input.js';
 
 const HELP = [
   'sql-tidy — format SQL safely without changing quoted text',
@@ -25,11 +27,6 @@ const HELP = [
   'Check mode prints no SQL values. Exit codes: 0 pass, 1 differs, 2 error.',
 ].join('\n');
 
-async function stdinText() {
-  const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
-  return Buffer.concat(chunks).toString('utf8');
-}
 async function main(argv) {
   const options = { keywordCase: 'upper', indent: 2 };
   let input = '', output = '', json = false, help = false, check = false, force = false;
@@ -70,7 +67,7 @@ async function main(argv) {
     }
   }
   if (!input && process.stdin.isTTY) throw new Error('Provide a file or pipe SQL through stdin.');
-  const sql = input ? await readFile(input, 'utf8') : await stdinText();
+  const sql = await readSqlStream(input ? createReadStream(input) : process.stdin);
   if (!sql.trim()) throw new Error('No SQL to format.');
   if (check) {
     const result = checkSql(sql, options);
