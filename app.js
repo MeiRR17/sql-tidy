@@ -8,6 +8,7 @@ const message = get('message');
 const copy = get('copy');
 const download = get('download');
 const checkDownload = get('check-report-download');
+const jumpDifference = get('jump-difference');
 let lastCheckReport = null;
 let editRevision = 0;
 let fileRequest = 0;
@@ -42,6 +43,7 @@ function updateStats() {
 function invalidateCheck() {
   lastCheckReport = null;
   checkDownload.disabled = true;
+  jumpDifference.disabled = true;
 }
 function invalidate() {
   invalidateCheck();
@@ -72,10 +74,11 @@ function format() {
   }
 }
 get('format').addEventListener('click', format);
-get('check-format').addEventListener('click', () => {
+function checkFormatting() {
   // Read-only check: neither SQL editor nor formatted-output preview changes.
   // Report coordinates and lengths only; do not echo confidential SQL text.
   if (!input.value.trim()) {
+    invalidateCheck();
     setMessage('Paste SQL or open a local file before checking formatting.', 'error');
     return;
   }
@@ -83,6 +86,7 @@ get('check-format').addEventListener('click', () => {
     const result = checkSqlReport(input.value, getOptions());
     lastCheckReport = result;
     checkDownload.disabled = false;
+    jumpDifference.disabled = result.unchanged;
     if (result.unchanged) {
       setMessage('Formatting check passed. The input already matches the selected style.', 'success');
     } else {
@@ -96,6 +100,22 @@ get('check-format').addEventListener('click', () => {
     setMessage('Formatting check failed: ' +
       (error instanceof Error ? error.message : 'Invalid SQL input.'), 'error');
   }
+}
+get('check-format').addEventListener('click', checkFormatting);
+jumpDifference.addEventListener('click', () => {
+  if (!lastCheckReport || lastCheckReport.unchanged || jumpDifference.disabled) return;
+  const { index, line, column } = lastCheckReport.firstDifference;
+  // The index is a UTF-16 source offset from checkSql(), matching the
+  // textarea selection API. This moves focus only; SQL is never edited.
+  if (!Number.isSafeInteger(index) || index < 0 || index > input.value.length) {
+    invalidateCheck();
+    setMessage('Formatting comparison is stale. Run Check formatting again.', 'error');
+    return;
+  }
+  input.focus();
+  input.setSelectionRange(index, Math.min(index + 1, input.value.length));
+  setMessage('First formatting difference selected at line ' + line +
+    ', column ' + column + '. No SQL was changed.', 'success');
 });
 get('sample').addEventListener('click', () => {
   input.value = example;
@@ -121,7 +141,8 @@ for (const id of ['keyword-case', 'indent']) {
 document.addEventListener('keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
     event.preventDefault();
-    format();
+    if (event.shiftKey) checkFormatting();
+    else format();
   }
 });
 get('file').addEventListener('change', async event => {
