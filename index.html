@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <meta name="description" content="A fast, readable SQL formatter. Preserve comments and quoted data, format in your browser, or use the CLI.">
+  <title>SQL Tidy — turn messy queries into readable SQL</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="brand"><span class="brand-symbol" aria-hidden="true">{ }</span> sql<span>tidy</span><b class="brand-suffix">/ studio</b></div>
+    <a href="https://github.com/MeiRR17/sql-tidy" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+  </header>
+  <main class="shell">
+    <section class="intro">
+      <div class="kicker"><span class="dot"></span> THE ZERO-DEPENDENCY SQL FORMATTER</div>
+      <h1>Clean SQL. <span>Clear thinking.</span></h1>
+      <p>Turn hard-to-read queries into structured, readable SQL. Your queries never leave your browser.</p>
+    </section>
+    <div class="toolbar" aria-label="Formatting options">
+      <div class="toolbar-group"><label for="keyword-case">Keywords</label><select id="keyword-case"><option value="upper">UPPERCASE</option><option value="lower">lowercase</option><option value="preserve">Preserve</option></select></div>
+      <div class="toolbar-group"><label for="indent">Indentation</label><select id="indent"><option value="2">2 spaces</option><option value="4">4 spaces</option></select></div>
+      <div class="toolbar-divider" aria-hidden="true"></div>
+      <span class="privacy-label">◎ 100% local processing</span>
+      <span class="toolbar-spacer"></span>
+      <button type="button" id="sample" class="button subtle">Try example</button>
+      <button type="button" id="clear" class="button subtle">Clear</button>
+      <button type="button" id="summarize" class="button subtle">Summarize structure</button>
+      <button type="button" id="summary-download" class="button subtle" disabled>↓ Summary JSON</button>
+      <button type="button" id="check-format" class="button subtle" title="Read-only check (Ctrl/Cmd+Shift+Enter)">Check formatting</button>
+      <button type="button" id="jump-difference" class="button subtle" disabled title="Focus the original SQL at the first formatting difference without changing it">Go to difference</button>
+      <button type="button" id="check-report-download" class="button subtle" disabled title="Download check metadata only, without SQL values">↓ Check JSON</button>
+      <button type="button" id="format" class="button primary">Format SQL <span aria-hidden="true">→</span></button>
+    </div>
+    <div class="workspace">
+      <section class="editor" aria-labelledby="input-heading">
+        <div class="editor-head"><div><span class="editor-step">01 / INPUT</span><h2 id="input-heading">Your query</h2></div><label for="file" class="file-button">↥ Open .sql file</label><input id="file" type="file" accept=".sql,.txt,text/plain" hidden></div>
+        <label for="input" class="sr-only">SQL to format</label>
+        <textarea id="input" spellcheck="false" placeholder="Paste your SQL query here..." aria-describedby="input-hint"></textarea>
+        <div class="editor-foot"><span id="input-hint">Paste SQL or upload a local .sql file</span><span id="input-stats">0 characters</span></div>
+      </section>
+      <section class="editor output-editor" aria-labelledby="output-heading">
+        <div class="editor-head"><div><span class="editor-step">02 / OUTPUT</span><h2 id="output-heading">Formatted SQL</h2></div>
+          <div class="head-actions"><button id="copy" class="file-button" type="button" disabled>Copy</button><button id="download" class="file-button" type="button" disabled>↓ Download</button></div></div>
+        <label for="output" class="sr-only">Formatted SQL output</label>
+        <textarea id="output" spellcheck="false" readonly placeholder="Your formatted SQL will appear here."></textarea>
+        <div class="editor-foot"><span id="output-hint">Waiting for input</span><span id="output-stats">0 lines</span></div>
+      </section>
+    </div>
+    <div class="message-row"><p id="message" role="status" aria-live="polite">Tip: press Ctrl / ⌘ + Enter to format instantly.</p><span>Comments and quoted values stay intact.</span></div>
+    <div class="features">
+      <article><span>01</span><h3>Readable structure</h3><p>Clear line breaks, consistent indentation, and organized SQL clauses.</p></article>
+      <article><span>02</span><h3>Quotes protected</h3><p>String literals, quoted identifiers, parameters, and comments are kept as written.</p></article>
+      <article><span>03</span><h3>Use it anywhere</h3><p>No runtime dependencies. Format in the browser, import the JavaScript API, or run the Node.js CLI.</p></article>
+    </div>
+  </main>
+  <footer><span>SQL Tidy · Open source project</span><a href="https://github.com/MeiRR17" target="_blank" rel="noopener noreferrer">Built by Meir Dvir</a></footer>
+</body>
+</html>

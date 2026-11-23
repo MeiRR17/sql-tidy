@@ -1,0 +1,27 @@
+{
+  "name": "sql-tidy",
+  "version": "0.1.0",
+  "description": "Dependency-free SQL formatter for the browser and Node.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": "./src/format.js",
+    "./check": "./src/check.js",
+    "./summary": "./src/summary.js"
+  },
+  "bin": {
+    "sql-tidy": "./bin/sql-tidy.js"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "index.html",
+    "styles.css",
+    "app.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT"
+}
