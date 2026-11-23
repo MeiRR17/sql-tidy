@@ -1,5 +1,6 @@
 import { formatSql, tokenizeSql } from './src/format.js';
 import { checkSqlReport } from './src/check.js';
+import { summarizeSql } from './src/summary.js';
 
 const get = id => document.getElementById(id);
 const input = get('input');
@@ -8,6 +9,8 @@ const message = get('message');
 const copy = get('copy');
 const download = get('download');
 const checkDownload = get('check-report-download');
+const summaryDownload = get('summary-download');
+let lastSummary = null;
 const jumpDifference = get('jump-difference');
 let lastCheckReport = null;
 let editRevision = 0;
@@ -41,6 +44,8 @@ function updateStats() {
     ? output.value.trimEnd().split(/\r\n?|\n/).length.toLocaleString() + ' lines' : '0 lines';
 }
 function invalidateCheck() {
+  lastSummary = null;
+  summaryDownload.disabled = true;
   lastCheckReport = null;
   checkDownload.disabled = true;
   jumpDifference.disabled = true;
@@ -102,6 +107,14 @@ function checkFormatting() {
   }
 }
 get('check-format').addEventListener('click', checkFormatting);
+get('summarize').addEventListener('click', () => {
+  if (!input.value.trim()) { setMessage('Paste SQL or open a local file before creating a structure report.', 'error'); return; }
+  try {
+    lastSummary = summarizeSql(input.value); summaryDownload.disabled = false;
+    const types = Object.entries(lastSummary.statementTypes).map(([name,count]) => name + ' ' + count).join(', ');
+    setMessage('Structure only: ' + lastSummary.statementCount + ' statements, ' + lastSummary.totalTokens + ' tokens' + (types ? ' (' + types + ')' : '') + '. No SQL text is included.', 'success');
+  } catch (error) { lastSummary = null; summaryDownload.disabled = true; setMessage('Could not summarize SQL: ' + error.message, 'error'); }
+});
 jumpDifference.addEventListener('click', () => {
   if (!lastCheckReport || lastCheckReport.unchanged || jumpDifference.disabled) return;
   const { index, line, column } = lastCheckReport.firstDifference;
@@ -208,6 +221,11 @@ function downloadFile(content, name, type) {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+summaryDownload.addEventListener('click', () => {
+  if (!lastSummary || summaryDownload.disabled) return;
+  downloadFile(JSON.stringify(lastSummary, null, 2) + '\n', 'sql-tidy-structure.json', 'application/json;charset=utf-8');
+  setMessage('Content-free SQL structure report downloaded. Counts and lengths may still be sensitive.', 'success');
+});
 checkDownload.addEventListener('click', () => {
   if (!lastCheckReport || checkDownload.disabled) return;
   try {

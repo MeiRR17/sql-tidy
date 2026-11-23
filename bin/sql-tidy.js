@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { formatSql } from '../src/format.js';
 import { checkSqlReport } from '../src/check.js';
+import { summarizeSql } from '../src/summary.js';
 import { readSqlStream } from '../src/input.js';
 
 const HELP = [
@@ -20,6 +21,7 @@ const HELP = [
   '  --indent=4    Indent with 4 spaces',
   '  --json        Print {"formatted":"..."}; with --check, redact SQL and print check result',
   '  --check       Exit 1 if formatting differs, 0 if already formatted',
+  '  --summary     Print content-free statement and token structure metadata',
   '  -o, --output  Write to a new file instead of stdout',
   '  --force       Allow overwriting an existing output (never the input)',
   '  -h, --help    Print usage information',
@@ -29,7 +31,7 @@ const HELP = [
 
 async function main(argv) {
   const options = { keywordCase: 'upper', indent: 2 };
-  let input = '', output = '', json = false, help = false, check = false, force = false;
+  let input = '', output = '', json = false, help = false, check = false, summary = false, force = false;
   for (let i = 0; i < argv.length; i++) {
     const value = argv[i];
     if (value === '--help' || value === '-h') help = true;
@@ -40,6 +42,7 @@ async function main(argv) {
     else if (value === '--indent=4') options.indent = 4;
     else if (value === '--json') json = true;
     else if (value === '--check') check = true;
+    else if (value === '--summary') summary = true;
     else if (value === '--force') force = true;
     else if (value === '-o' || value === '--output') {
       output = argv[++i];
@@ -49,7 +52,8 @@ async function main(argv) {
     else throw new Error('Only one input filename is supported.');
   }
   if (help) { process.stdout.write(HELP + '\n'); return; }
-  if (check && (output || force)) throw new Error('--check cannot be combined with --output or --force.');
+  if (check && summary) throw new Error('--check and --summary are separate report modes.');
+  if ((check || summary) && (output || force)) throw new Error('Report modes cannot be combined with --output or --force.');
   if (force && !output) throw new Error('--force requires --output.');
   if (output && input) {
     if (resolve(output) === resolve(input)) throw new Error('Refusing to overwrite the input file.');
@@ -69,6 +73,12 @@ async function main(argv) {
   if (!input && process.stdin.isTTY) throw new Error('Provide a file or pipe SQL through stdin.');
   const sql = await readSqlStream(input ? createReadStream(input) : process.stdin);
   if (!sql.trim()) throw new Error('No SQL to format.');
+  if (summary) {
+    const report = summarizeSql(sql);
+    process.stdout.write(json ? JSON.stringify(report, null, 2) + '\n' :
+      'SQL structure: ' + report.statementCount + ' statements, ' + report.totalTokens + ' tokens, ' + report.characterCount + ' characters.\n');
+    return;
+  }
   if (check) {
     const result = checkSqlReport(sql, options);
     if (json) {
