@@ -8,7 +8,8 @@
   },
   "exports": {
     ".": "./src/format.js",
-    "./check": "./src/check.js"
+    "./check": "./src/check.js",
+    "./summary": "./src/summary.js"
   },
   "bin": {
     "sql-tidy": "./bin/sql-tidy.js"
