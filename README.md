@@ -22,6 +22,12 @@ Requires Node.js 22 or newer. No installation of external dependencies is requir
 
 Keyword case may be upper (default), lower, or preserve. Indentation may be 2 (default) or 4 spaces.
 
+A content-free structural summary is available through `sql-tidy/summary`:
+
+    import { summarizeSql } from './src/summary.js';
+    const metadata = summarizeSql('select id from users where active = ?;');
+    // Contains counts and statement types only, never query text.
+
 Read-only formatting checks are also available:
 
     import { checkSql, checkSqlReport } from './src/check.js';
